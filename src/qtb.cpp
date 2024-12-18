@@ -6,6 +6,7 @@ QTB::QTB(QWidget *parent) :
     ui(new Ui::QTB)
 {
     ui->setupUi(this);
+    this->setWindowTitle("general toolbox");
 }
 
 QTB::~QTB()
