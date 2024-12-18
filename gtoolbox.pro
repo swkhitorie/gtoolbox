@@ -32,7 +32,7 @@ HEADERS += \
         ./src/qtb.h
 
 FORMS += \
-        ./src/qtb.ui
+        ./uiforms/qtb.ui
 
 RC_ICONS = ./resources/icons/qtoolbox.ico
 
