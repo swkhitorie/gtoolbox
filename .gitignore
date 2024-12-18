@@ -1,4 +1,18 @@
 
-build*
-
+.vscode/
+*_qmlcache.qrc
+build*/
 *pro.user*
+.qmake.stash
+*.Debug
+*.Release
+debug
+release
+Makefile
+
+# Generated files
+moc_*
+ui_*
+*.o
+*.moc
+*.prl
