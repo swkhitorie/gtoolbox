@@ -2,6 +2,7 @@
 #define QTB_H
 
 #include <QMainWindow>
+#include "./uiforms/multifileformattrans.h"
 
 namespace Ui {
 class QTB;
@@ -15,8 +16,13 @@ public:
     explicit QTB(QWidget *parent = nullptr);
     ~QTB();
 
+private slots:
+    void open_multiFileFormatTrans();
+
 private:
     Ui::QTB *ui;
+    MultiFileFormatTrans *ui_multifiletrans;
+
 };
 
 #endif // QTB_H

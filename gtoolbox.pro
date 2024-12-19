@@ -23,16 +23,26 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 CONFIG += c++11
+CONFIG += warn_off
+QMAKE_CXXFLAGS = -Wall
+QMAKE_CXXFLAGS += -Wno-unused-parameter
+QMAKE_CXXFLAGS += -Wno-unused-function
+QMAKE_CXXFLAGS += -Wno-unused-but-set-variable
 
 SOURCES += \
         ./src/main.cpp \
-        ./src/qtb.cpp
+        ./src/qtb.cpp \
+        ./src/uiforms/multifileformattrans.cpp \
+        ./src/tools/filetransformat.cpp
 
 HEADERS += \
-        ./src/qtb.h
+        ./src/qtb.h \
+        ./src/uiforms/multifileformattrans.h \
+        ./src/tools/filetransformat.h
 
 FORMS += \
-        ./uiforms/qtb.ui
+        ./uiforms/qtb.ui \
+        ./uiforms/multifileformattrans.ui
 
 RC_ICONS = ./resources/icons/qtoolbox.ico
 
