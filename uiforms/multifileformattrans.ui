@@ -125,6 +125,11 @@
      <string>USR_2</string>
     </property>
    </item>
+   <item>
+    <property name="text">
+     <string>USR_3</string>
+    </property>
+   </item>
   </widget>
  </widget>
  <resources/>

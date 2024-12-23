@@ -34,6 +34,16 @@ public:
          * NovAtel Inertial Data Formta [https://docs.novatel.com/Waypoint/Content/Data_Formats/IE_Data_Formats.htm?]
         */
         USR_2,
+
+        /*
+         * LSM6DSR: (KingstVIS analyszed i2c bus result .txt)
+         * 0.6435248000,29,0xD4,0x10,Write,ACK
+         * ...
+         * ->
+         * 0xD4,0x28,Write ->6
+         * 0xD4,0x20,Write ->8
+        */
+        USR_3,
     };
 
     void reset();
@@ -49,6 +59,8 @@ public:
     int format_usr1();
 
     int format_usr2();
+
+    int format_usr3();
 
 public slots:
     int work();
@@ -74,6 +86,9 @@ private:
     void            filebigbuffer_update(int ridx);
     void            filemap_update(int idx);
     uint8_t         format_usr1_hexascii_to_byte(const char *p);
+
+    void            fileidx_percent(int read_idx);
+    char            getfile_buffer(int &read_idx, int &buffer_idx);
 };
 
 

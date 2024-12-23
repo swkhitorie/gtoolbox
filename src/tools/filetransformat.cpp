@@ -68,6 +68,38 @@ uint8_t FileTransFormat::format_usr1_hexascii_to_byte(const char *p)
     return static_cast<unsigned char>(high4bit << 4 | low4bit);
 }
 
+void FileTransFormat::fileidx_percent(int read_idx)
+{
+    int interval = 3;
+    float a = static_cast<unsigned int>(read_idx) * 100.0f;
+    float b = static_cast<unsigned int>(getSourceFileSize());
+    _file_trans_percent[0] = static_cast<unsigned int>(a/b);
+    if (_file_trans_percent[0] - _file_trans_percent[1] >= interval) {
+        _file_trans_percent[1] = _file_trans_percent[0];
+        emit progress_add(_file_trans_percent[0]);
+    }
+}
+
+char FileTransFormat::getfile_buffer(int &read_idx, int &buffer_idx)
+{
+    char c = 0;
+#ifndef BIGFILE_SUPPORT
+    c = _file_src_data.at(read_idx);
+#else
+    if (getSourceFileSize() > bigfile_minlen) {
+        if (buffer_idx >= bigfile_bufferlen) {
+            buffer_idx = 0;
+            filebigbuffer_update(read_idx);
+        }
+        c = _file_src_data.at(buffer_idx);
+        buffer_idx++;
+    } else {
+        c = _file_src_data.at(read_idx);
+    }
+#endif
+    return c;
+}
+
 void FileTransFormat::filebigbuffer_update(int ridx)
 {
     int len = (getSourceFileSize() - ridx <= bigfile_bufferlen) ?
@@ -130,6 +162,9 @@ int FileTransFormat::work()
     case USR_2:
         format_usr2();
         break;
+    case USR_3:
+        format_usr3();
+        break;
     default: break;
     }
     emit progredd_complete();
@@ -165,26 +200,12 @@ int FileTransFormat::format_usr1()
     qDebug() << "[format] open dstfile" << name1;
     qDebug() << "[format] open dstfile" << name2;
 
-    int ridx = 0;
-    int idx = 0;
+    int idx_read = 0;
+    int idx_buffer = 0;
     QString msg;
-    while (ridx < getSourceFileSize()) {
-        char c = 0;
-#ifndef BIGFILE_SUPPORT
-        c = _file_src_data.at(ridx);
-#else
-        if (getSourceFileSize() > bigfile_minlen) {
-            if (idx >= bigfile_bufferlen) {
-                idx = 0;
-                filebigbuffer_update(ridx);
-            }
-            c = _file_src_data.at(idx);
-            idx++;
-        } else {
-            c = _file_src_data.at(ridx);
-        }
-#endif
-        ridx++;
+    while (idx_read < getSourceFileSize()) {
+        char c = getfile_buffer(idx_read, idx_buffer);
+        idx_read++;
         msg.append(c);
         if (c == 0x0A) {
             if (msg.contains("$RTK_RAW", Qt::CaseSensitive)) {
@@ -215,13 +236,7 @@ int FileTransFormat::format_usr1()
             }
             msg.clear();
         }
-        float a = static_cast<unsigned int>(ridx) * 100.0f;
-        float b = static_cast<unsigned int>(getSourceFileSize());
-        _file_trans_percent[0] = static_cast<unsigned int>(a/b);
-        if (_file_trans_percent[0] - _file_trans_percent[1] >= 3) {
-            _file_trans_percent[1] = _file_trans_percent[0];
-            emit progress_add(_file_trans_percent[0]);
-        }
+        fileidx_percent(idx_read);
     }
     qDebug () << "[format] end format trans";
     _file_dst[0].close();
@@ -267,26 +282,12 @@ int FileTransFormat::format_usr2()
     int cnt_f = 0;
     int gaps = 0;
 
-    int ridx = 0;
-    int idx = 0;
+    int idx_read = 0;
+    int idx_buffer = 0;
     QString msg;
-    while (ridx < getSourceFileSize()) {
-        char c = 0;
-#ifndef BIGFILE_SUPPORT
-        c = _file_src_data.at(ridx);
-#else
-        if (getSourceFileSize() > bigfile_minlen) {
-            if (idx >= bigfile_bufferlen) {
-                idx = 0;
-                filebigbuffer_update(ridx);
-            }
-            c = _file_src_data.at(idx);
-            idx++;
-        } else {
-            c = _file_src_data.at(ridx);
-        }
-#endif
-        ridx++;
+    while (idx_read < getSourceFileSize()) {
+        char c = getfile_buffer(idx_read, idx_buffer);
+        idx_read++;
         msg.append(c);
         if (c == '\n') {
             if (msg.contains("$IMURAW", Qt::CaseSensitive)) {
@@ -348,15 +349,264 @@ int FileTransFormat::format_usr2()
             }
             msg.clear();
         }
-        float a = static_cast<unsigned int>(ridx) * 100.0f;
-        float b = static_cast<unsigned int>(getSourceFileSize());
-        _file_trans_percent[0] = static_cast<unsigned int>(a/b);
-        if (_file_trans_percent[0] - _file_trans_percent[1] >= 3) {
-            _file_trans_percent[1] = _file_trans_percent[0];
-            emit progress_add(_file_trans_percent[0]);
-        }
+        fileidx_percent(idx_read);
     }
     qDebug () << "[format] end format trans";
+
+    _file_dst[0].close();
+    _file_src.close();
+    return 0;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////// USER Pack3 Trans ///////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////
+int FileTransFormat::format_usr3()
+{
+    QString now = QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss");
+    QString time_suffix = QString("_["+now+"]");
+    QString name = QString(_file_src_path.section(".",0,0) + time_suffix + ".txt");
+    _file_dst[0].setFileName(name);
+    qDebug() << "[format] enter";
+    try {
+        bool r1 = _file_dst[0].open(QIODevice::WriteOnly);
+        if (!r1) {
+            _file_dst[0].close();
+            delete _file_dst;
+            emit progress_fail(1);
+            return -2;
+        }
+        _file_dst_txtstream[0].setDevice(_file_dst);
+    } catch (std::bad_alloc) {
+        qDebug() << "exception catch";
+    }
+    qDebug() << "[format] open dstfile" << name;
+
+    uint8_t accel_origin_t[6];
+    uint8_t gyro_tmp_origin_t[8];
+
+    int16_t accel_origin[3];
+    int16_t gyro_tmp_origin[4];
+
+    float accel[3];
+    float gyro[3];
+    double sample_timestamp = 0;
+
+    int accel_scale = 0;
+    int gyro_scale = 0;
+
+    int is_begin = 0;
+    int state_0x28_accel = -1;
+    int state_0x20_tmp_gyro = -1;
+    int state_0x11_ctrl_g = -1;
+    int state_0x10_ctrl_xl = -1;
+
+    int cnt_accel_0x28_origin = 0;
+    int cnt_accel_0x28_frame = 0;
+    int cnt_gyro_tmp_0x20_origin = 0;
+    int cnt_gyro_tmp_0x20_frame = 0;
+
+    int idx_read = 0;
+    int idx_buffer = 0;
+    QString msg;
+    while (idx_read < getSourceFileSize()) {
+        char c = getfile_buffer(idx_read, idx_buffer);
+        idx_read++;
+        msg.append(c);
+        if (c == '\n') {
+            if (msg.contains("0xD4,0x11,Write", Qt::CaseSensitive) && is_begin == 0 && gyro_scale == 0) {
+                state_0x11_ctrl_g = 0;
+                msg.clear();
+                continue;
+            }
+            if (msg.contains("0xD4,0x10,Write", Qt::CaseSensitive) && is_begin == 0 && accel_scale == 0) {
+                state_0x10_ctrl_xl = 0;
+                msg.clear();
+                continue;
+            }
+            if (msg.contains("0xD4,0x1E,Write", Qt::CaseSensitive) && is_begin == 0) {
+                is_begin = 1;
+            }
+            if (msg.contains("0xD4,0x28,Write", Qt::CaseSensitive) && is_begin == 1) {
+                state_0x28_accel = 0;
+            }
+            if (msg.contains("0xD4,0x20,Write", Qt::CaseSensitive) && is_begin == 1) {
+                state_0x20_tmp_gyro = 0;
+            }
+            if (state_0x20_tmp_gyro >= 0 && state_0x28_accel >= 0) {
+                qDebug() << "error seq";
+            }
+            if (msg.contains("0xD4", Qt::CaseSensitive) &&
+                msg.contains("Write", Qt::CaseSensitive) &&
+                state_0x11_ctrl_g >= 0 && state_0x10_ctrl_xl < 0) {
+                std::string str = msg.toStdString();
+                const char *msg_data;
+                char *endp;
+                msg_data = str.c_str();
+                if (msg_data && *(msg_data) != ',') {
+                    double sample_time = strtod(msg_data, &endp); (void)sample_time;
+                    msg_data = endp;
+                }
+                if (msg_data && *(++msg_data) != ',') {
+                    int cmd_cnt = strtol(msg_data, &endp, 10); (void)cmd_cnt;
+                    msg_data = endp;
+                }
+                if (msg_data && *(++msg_data) != ',') {
+                    int addr = strtol(msg_data, &endp, 16); (void)addr;
+                    msg_data = endp;
+                }
+                if (msg_data && *(++msg_data) != ',') {
+                    int data = strtol(msg_data, &endp, 16);
+                    uint8_t scale_setting = ((uint8_t)data & 0x0C) >> 2;
+                    gyro_scale = 250 << scale_setting;
+                    msg_data = endp;
+                }
+                state_0x11_ctrl_g = -1;
+                // qDebug() << "gyro scale" << gyro_scale;
+            }
+
+            if (msg.contains("0xD4", Qt::CaseSensitive) &&
+                msg.contains("Write", Qt::CaseSensitive) &&
+                state_0x10_ctrl_xl >= 0 && state_0x11_ctrl_g < 0) {
+                std::string str = msg.toStdString();
+                const char *msg_data;
+                char *endp;
+                msg_data = str.c_str();
+                if (msg_data && *(msg_data) != ',') {
+                    double sample_time = strtod(msg_data, &endp); (void)sample_time;
+                    msg_data = endp;
+                }
+                if (msg_data && *(++msg_data) != ',') {
+                    int cmd_cnt = strtol(msg_data, &endp, 10); (void)cmd_cnt;
+                    msg_data = endp;
+                }
+                if (msg_data && *(++msg_data) != ',') {
+                    int addr = strtol(msg_data, &endp, 16); (void)addr;
+                    msg_data = endp;
+                }
+                if (msg_data && *(++msg_data) != ',') {
+                    int data = strtol(msg_data, &endp, 16);
+                    uint8_t scale_setting = ((uint8_t)data & 0x0C) >> 2;
+                    if (scale_setting == 0) {
+                        accel_scale = 2;
+                    }
+                    if (scale_setting == 1) {
+                        accel_scale = 16;
+                    }
+                    if (scale_setting == 2) {
+                        accel_scale = 4;
+                    }
+                    if (scale_setting == 3) {
+                        accel_scale = 8;
+                    }
+                    msg_data = endp;
+                }
+                state_0x10_ctrl_xl = -1;
+                // qDebug() << "accel scale: " << accel_scale;
+            }
+
+            if (msg.contains("0xD5", Qt::CaseSensitive) &&
+                msg.contains("Read", Qt::CaseSensitive) &&
+                state_0x28_accel >= 0 && state_0x20_tmp_gyro < 0) {
+                std::string str = msg.toStdString();
+                int strlen = msg.size();
+                int stridx = 0;
+                const char *msg_data;
+                char *endp;
+                msg_data = str.c_str();
+                msg_data += stridx;
+                if (msg_data && *(msg_data) != ',') {
+                    double sample_time = strtod(msg_data, &endp); (void)sample_time;
+                    msg_data = endp;
+                }
+                if (msg_data && *(++msg_data) != ',') {
+                    int cmd_cnt = strtol(msg_data, &endp, 10); (void)cmd_cnt;
+                    msg_data = endp;
+                }
+                if (msg_data && *(++msg_data) != ',') {
+                    int addr = strtol(msg_data, &endp, 16); (void)addr;
+                    msg_data = endp;
+                }
+                if (msg_data && *(++msg_data) != ',') {
+                    int data = strtol(msg_data, &endp, 16);
+                    accel_origin_t[state_0x28_accel] = data;
+                    msg_data = endp;
+                }
+                state_0x28_accel++;
+                cnt_accel_0x28_origin++;
+                if (state_0x28_accel == 6) {
+                    state_0x28_accel = -1;
+                    cnt_accel_0x28_frame++;
+                    accel_origin[0] =(uint16_t) accel_origin_t[0] | (uint16_t)(accel_origin_t[1] << 8);
+                    accel_origin[1] =(uint16_t) accel_origin_t[2] | (uint16_t)(accel_origin_t[3] << 8);
+                    accel_origin[2] =(uint16_t) accel_origin_t[4] | (uint16_t)(accel_origin_t[5] << 8);
+                    accel[0] = ((float)accel_origin[0] * 2 * accel_scale * 9.7914) / 65536.0f;
+                    accel[1] = ((float)accel_origin[1] * 2 * accel_scale * 9.7914) / 65536.0f;
+                    accel[2] = ((float)accel_origin[2] * 2 * accel_scale * 9.7914) / 65536.0f;
+                    // qDebug() << "accel: " << accel[0] << ", " << accel[1] << ", " << accel[2];
+                }
+            }
+
+            if (msg.contains("0xD5", Qt::CaseSensitive) &&
+                msg.contains("Read", Qt::CaseSensitive) &&
+                state_0x20_tmp_gyro >= 0 && state_0x28_accel < 0) {
+                std::string str = msg.toStdString();
+                int strlen = msg.size();
+                int stridx = 0;
+                const char *msg_data;
+                char *endp;
+                msg_data = str.c_str();
+                //msg_data += stridx;
+                if (msg_data && *(msg_data) != ',') {
+                    double sample_time = strtod(msg_data, &endp); (void)sample_time;
+                    sample_timestamp = sample_time;
+                    msg_data = endp;
+                }
+                if (msg_data && *(++msg_data) != ',') {
+                    int cmd_cnt = strtol(msg_data, &endp, 10); (void)cmd_cnt;
+                    msg_data = endp;
+                }
+                if (msg_data && *(++msg_data) != ',') {
+                    int addr = strtol(msg_data, &endp, 16); (void)addr;
+                    msg_data = endp;
+                }
+                if (msg_data && *(++msg_data) != ',') {
+                    int data = strtol(msg_data, &endp, 16);
+                    gyro_tmp_origin_t[state_0x20_tmp_gyro] = data;
+                    msg_data = endp;
+                }
+                state_0x20_tmp_gyro++;
+                cnt_gyro_tmp_0x20_origin++;
+                if (state_0x20_tmp_gyro == 8) {
+                    state_0x20_tmp_gyro = -1;
+                    cnt_gyro_tmp_0x20_frame++;
+                    gyro_tmp_origin[1] =(uint16_t) gyro_tmp_origin_t[2] | (uint16_t)(gyro_tmp_origin_t[3] << 8);
+                    gyro_tmp_origin[2] =(uint16_t) gyro_tmp_origin_t[4] | (uint16_t)(gyro_tmp_origin_t[5] << 8);
+                    gyro_tmp_origin[3] =(uint16_t) gyro_tmp_origin_t[6] | (uint16_t)(gyro_tmp_origin_t[7] << 8);
+                    gyro[0] = ((float)gyro_tmp_origin[1] * 2 * gyro_scale * 3.14 / 180.0) / 65536.0f;
+                    gyro[1] = ((float)gyro_tmp_origin[2] * 2 * gyro_scale * 3.14 / 180.0) / 65536.0f;
+                    gyro[2] = ((float)gyro_tmp_origin[3] * 2 * gyro_scale * 3.14 / 180.0) / 65536.0f;
+                    if (cnt_accel_0x28_frame == cnt_gyro_tmp_0x20_frame) {
+                        QString output("$IMURAW,"+ QString::number(gyro[0],'f',6) + ","
+                                + QString::number(gyro[1],'f',6) + ","
+                                + QString::number(gyro[2],'f',6) + ","
+                                + QString::number(accel[0],'f',6) + ","
+                                + QString::number(accel[1],'f',6) + ","
+                                + QString::number(accel[2],'f',6) + ","
+                                + QString::number(sample_timestamp,'f',6)
+                                + "\r\n");
+                        _file_dst_txtstream[0].operator <<(output);
+                        // qDebug() << output;
+                    }
+                }
+            }
+            msg.clear();
+        }
+        fileidx_percent(idx_read);
+    }
+    qDebug () << "[format] end format trans";
+    qDebug() << "debug:" <<cnt_accel_0x28_origin << ", " << cnt_accel_0x28_frame <<
+                ", " << cnt_gyro_tmp_0x20_origin << ", " << cnt_gyro_tmp_0x20_frame;
 
     _file_dst[0].close();
     _file_src.close();
