@@ -374,9 +374,11 @@ int FileTransFormat::format_usr3()
 {
     QString now = QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss");
     QString time_suffix = QString("_["+now+"]");
-    QString name = QString(_file_src_path.section(".",0,0) + time_suffix + ".txt");
+
+    QString name = QString(QFileInfo(_file_src_path).absolutePath() + "/" +
+                           QFileInfo(_file_src_path).baseName() + time_suffix + ".txt");
     _file_dst[0].setFileName(name);
-    qDebug() << "[format] enter";
+    qDebug() << "[format] enter " << name;
     try {
         bool r1 = _file_dst[0].open(QIODevice::WriteOnly);
         if (!r1) {
@@ -619,7 +621,7 @@ int FileTransFormat::format_usr3()
                         uint8_t checksum = xor_sum_check(&data_check[0]);
                         QString output_ck(output + QString::number(checksum,16).toUpper() + "\r\n");
                         _file_dst_txtstream[0].operator <<(output_ck);
-                        // qDebug() << output_ck;
+                        //qDebug() << output_ck;
                     }
                 }
             }
