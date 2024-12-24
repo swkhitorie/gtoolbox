@@ -85,6 +85,7 @@ private:
 
     void            filebigbuffer_update(int ridx);
     void            filemap_update(int idx);
+    uint8_t         xor_sum_check(const uint8_t *buf);  /* $GNGGA,...,*<CR><LF> */
     uint8_t         format_usr1_hexascii_to_byte(const char *p);
 
     void            fileidx_percent(int read_idx);

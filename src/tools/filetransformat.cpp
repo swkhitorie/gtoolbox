@@ -43,6 +43,15 @@ void FileTransFormat::reset()
     }
 }
 
+uint8_t FileTransFormat::xor_sum_check(const uint8_t *buf)
+{
+    uint8_t i      = 0;
+    uint8_t result = buf[1];
+    for (i = 2; buf[i] != '*'; i++)
+        result ^= buf[i];
+    return result;
+}
+
 uint8_t FileTransFormat::format_usr1_hexascii_to_byte(const char *p)
 {
     uint8_t high4bit = 0;
@@ -537,6 +546,9 @@ int FileTransFormat::format_usr3()
                 if (state_0x28_accel == 6) {
                     state_0x28_accel = -1;
                     cnt_accel_0x28_frame++;
+                    if (accel_scale == 0) {
+                        accel_scale = 2;
+                    }
                     accel_origin[0] =(uint16_t) accel_origin_t[0] | (uint16_t)(accel_origin_t[1] << 8);
                     accel_origin[1] =(uint16_t) accel_origin_t[2] | (uint16_t)(accel_origin_t[3] << 8);
                     accel_origin[2] =(uint16_t) accel_origin_t[4] | (uint16_t)(accel_origin_t[5] << 8);
@@ -580,6 +592,9 @@ int FileTransFormat::format_usr3()
                 if (state_0x20_tmp_gyro == 8) {
                     state_0x20_tmp_gyro = -1;
                     cnt_gyro_tmp_0x20_frame++;
+                    if (gyro_scale == 0) {
+                        gyro_scale = 250;
+                    }
                     gyro_tmp_origin[1] =(uint16_t) gyro_tmp_origin_t[2] | (uint16_t)(gyro_tmp_origin_t[3] << 8);
                     gyro_tmp_origin[2] =(uint16_t) gyro_tmp_origin_t[4] | (uint16_t)(gyro_tmp_origin_t[5] << 8);
                     gyro_tmp_origin[3] =(uint16_t) gyro_tmp_origin_t[6] | (uint16_t)(gyro_tmp_origin_t[7] << 8);
@@ -594,9 +609,17 @@ int FileTransFormat::format_usr3()
                                 + QString::number(accel[1],'f',6) + ","
                                 + QString::number(accel[2],'f',6) + ","
                                 + QString::number(sample_timestamp,'f',6)
-                                + "\r\n");
-                        _file_dst_txtstream[0].operator <<(output);
-                        // qDebug() << output;
+                                + '*');
+                        uint8_t data_check[256];
+                        std::string str_1 = output.toStdString();
+                        const char *msg_1 = str_1.c_str();
+                        for (int i = 0; i < str_1.size(); i++) {
+                            data_check[i] = msg_1[i];
+                        }
+                        uint8_t checksum = xor_sum_check(&data_check[0]);
+                        QString output_ck(output + QString::number(checksum,16).toUpper() + "\r\n");
+                        _file_dst_txtstream[0].operator <<(output_ck);
+                        // qDebug() << output_ck;
                     }
                 }
             }
