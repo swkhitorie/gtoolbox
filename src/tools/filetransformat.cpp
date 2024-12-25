@@ -402,7 +402,8 @@ int FileTransFormat::format_usr3()
     float accel[3];
     float gyro[3];
     double sample_timestamp = 0;
-
+    double sample_timestamp_lst = 0;
+    int gap_cnt = 0;
     int accel_scale = 0;
     int gyro_scale = 0;
 
@@ -622,7 +623,13 @@ int FileTransFormat::format_usr3()
                         QString output_ck(output + QString::number(checksum,16).toUpper() + "\r\n");
                         _file_dst_txtstream[0].operator <<(output_ck);
                         //qDebug() << output_ck;
+                        if (sample_timestamp - sample_timestamp_lst > 0.021) {
+                            gap_cnt++;
+                        } else {
+                            qDebug() << sample_timestamp << ", " << sample_timestamp_lst;
+                        }
                     }
+                    sample_timestamp_lst = sample_timestamp;
                 }
             }
             msg.clear();
@@ -632,6 +639,7 @@ int FileTransFormat::format_usr3()
     qDebug () << "[format] end format trans";
     qDebug() << "debug:" <<cnt_accel_0x28_origin << ", " << cnt_accel_0x28_frame <<
                 ", " << cnt_gyro_tmp_0x20_origin << ", " << cnt_gyro_tmp_0x20_frame;
+    qDebug() << "gap cnt: " << gap_cnt;
 
     _file_dst[0].close();
     _file_src.close();
