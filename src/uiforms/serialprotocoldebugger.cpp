@@ -93,13 +93,41 @@ void SerialProtocolDebugger::slotRead()
     if (_port.bytesAvailable() <= 0) return;
     QByteArray byteData = _port.readAll();
 
-    char *data = byteData.data();
-    uint8_t *p = reinterpret_cast<uint8_t *>(data);
-    int len = byteData.length();
+    switch (ui->cb_protocol->currentIndex()) {
+    case RAW:
+        // qDebug() << "rcv lenth: " << byteData.length();
+        break;
+    case GNSS:
+        handle_gnss(byteData);
+        break;
+    default: break;
+    }
 }
-
 
 void SerialProtocolDebugger::onTimeout()
 {
 
+}
+
+void SerialProtocolDebugger::handle_gnss(QByteArray &array)
+{
+    char *p = array.data();
+    int len = array.length();
+    static rtcm_t msg;
+
+    for (int i = 0; i < len; i++) {
+        int res = input_rtcm3(&msg, p[i]);
+        switch (res) {
+        case RTCM3_FRAME_INCOMPLETE:
+        case RTMC3_FRAME_BAD_CRC:
+            break;
+        case RTCM3_FRAME_OK:
+            decode_rtcm3(&msg);
+            if (msg.msg_number == 999) {
+                qDebug() << "id: " << msg.msg_number << " sub: " << getbitu(msg.buff,36,8);
+            }
+            qDebug() << "tow: " << msg.tow;
+            break;
+        }
+    }
 }

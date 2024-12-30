@@ -29,23 +29,25 @@ QMAKE_CXXFLAGS += -Wno-unused-parameter
 QMAKE_CXXFLAGS += -Wno-unused-function
 QMAKE_CXXFLAGS += -Wno-unused-but-set-variable
 
-SOURCES += \
-        ./src/main.cpp \
-        ./src/qtb.cpp \
-        ./src/uiforms/multifileformattrans.cpp \
-        ./src/uiforms/serialprotocoldebugger.cpp \
-        ./src/tools/filetransformat.cpp \
+SOURCES += ./src/main.cpp
+SOURCES += ./src/qtb.cpp
+SOURCES += ./src/uiforms/multifileformattrans.cpp
+SOURCES += ./src/uiforms/serialprotocoldebugger.cpp
+SOURCES += ./src/tools/filetransformat.cpp
+SOURCES += ./src/rtklib/rtkcmn.c
+SOURCES += ./src/rtklib/rtcm3.c
 
-HEADERS += \
-        ./src/qtb.h \
-        ./src/uiforms/multifileformattrans.h \
-        ./src/uiforms/serialprotocoldebugger.h \
-        ./src/tools/filetransformat.h \
+INCLUDEPATH += ./src/rtklib
 
-FORMS += \
-        ./uiforms/qtb.ui \
-        ./uiforms/multifileformattrans.ui \
-        ./uiforms/serialprotocoldebugger.ui \
+HEADERS += ./src/qtb.h
+HEADERS += ./src/uiforms/multifileformattrans.h
+HEADERS += ./src/uiforms/serialprotocoldebugger.h
+HEADERS += ./src/tools/filetransformat.h
+HEADERS += ./src/rtklib/rtklib.h
+
+FORMS += ./uiforms/qtb.ui
+FORMS += ./uiforms/multifileformattrans.ui
+FORMS += ./uiforms/serialprotocoldebugger.ui
 
 RC_ICONS = ./resources/icons/qtoolbox.ico
 

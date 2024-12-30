@@ -8,6 +8,8 @@
 #include <QSerialPortInfo>
 #include <QTimer>
 
+#include <rtklib.h>
+
 namespace Ui {
 class SerialProtocolDebugger;
 }
@@ -31,6 +33,11 @@ protected:
     bool nativeEvent(const QByteArray& eventType, void* message, long* result) override;
 
 private:
+    enum protocol_select {
+        RAW = 0,
+        GNSS,
+    };
+
     Ui::SerialProtocolDebugger *ui;
 
     QTimer     *_tim;
@@ -39,6 +46,8 @@ private:
     QSerialPort _port;
 
     void refreshCom();
+
+    void handle_gnss(QByteArray &array);
 };
 
 #endif // SERIALPROTOCOLDEBUGGER_H
