@@ -28,6 +28,7 @@
      <string>Tools</string>
     </property>
     <addaction name="actionMultiFileFormatTrans"/>
+    <addaction name="actionserialdebugger"/>
    </widget>
    <addaction name="menu"/>
   </widget>
@@ -35,6 +36,11 @@
   <action name="actionMultiFileFormatTrans">
    <property name="text">
     <string>MultiFileFormatTrans</string>
+   </property>
+  </action>
+  <action name="actionserialdebugger">
+   <property name="text">
+    <string>serialdebugger</string>
    </property>
   </action>
  </widget>

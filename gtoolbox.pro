@@ -4,9 +4,9 @@
 #
 #-------------------------------------------------
 
-QT       += core gui
+QT       += core gui serialport
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport
 
 TARGET = gtoolbox
 TEMPLATE = app
@@ -33,16 +33,19 @@ SOURCES += \
         ./src/main.cpp \
         ./src/qtb.cpp \
         ./src/uiforms/multifileformattrans.cpp \
-        ./src/tools/filetransformat.cpp
+        ./src/uiforms/serialprotocoldebugger.cpp \
+        ./src/tools/filetransformat.cpp \
 
 HEADERS += \
         ./src/qtb.h \
         ./src/uiforms/multifileformattrans.h \
-        ./src/tools/filetransformat.h
+        ./src/uiforms/serialprotocoldebugger.h \
+        ./src/tools/filetransformat.h \
 
 FORMS += \
         ./uiforms/qtb.ui \
-        ./uiforms/multifileformattrans.ui
+        ./uiforms/multifileformattrans.ui \
+        ./uiforms/serialprotocoldebugger.ui \
 
 RC_ICONS = ./resources/icons/qtoolbox.ico
 
